@@ -12,6 +12,19 @@
             "justMyCode": false
         },
         {
+            "name": "Scrape from 2016",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scrape.py",
+            "args": [
+                "--start",
+                "20160101",
+                "--end",
+                "20171122"
+            ],
+            "justMyCode": false
+        },
+        {
             "name": "Scrape from start through end date",
             "type": "python",
             "request": "launch",
