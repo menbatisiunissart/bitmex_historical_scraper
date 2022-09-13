@@ -8,6 +8,7 @@ import shutil
 import time
 
 import requests
+import pandas as pd
 
 
 # https://public.bitmex.com/?prefix=data/trade/
@@ -59,15 +60,26 @@ def merge(year):
     for f in files:
         os.unlink(f)
 
+def filter(year, symbol):
+    if (symbol==None):
+        return
+    print("Filtering CSV for {}".format(year), "symbol: {}".format(symbol))
+    file = "{}.csv".format(year)
+    file_filtered = "{}_filtered.csv".format(year)
+    df_csv = pd.read_csv(file)
+    df_csv = df_csv.loc[df_csv['symbol'] == symbol]
+    df_csv.to_csv(path_or_buf=file_filtered, index=False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BitMex historical data scraper. Scrapes files into single year CSVs')
     parser.add_argument('--start', default="20141122", help='start date, in YYYYMMDD format. Default is 2014-11-22, the earliest data date for BitMex')
     parser.add_argument('--end', default=None, help='end date, in YYYYMMDD format. Default is yesterday')
+    parser.add_argument('--symbol', default=None, help='symbol filter to apply. Default is None, no filtering will be applied')
     args = parser.parse_args()
 
     start = dt.strptime(args.start, '%Y%m%d')
     end = dt.strptime(args.end, '%Y%m%d') if args.end else dt.utcnow()
+    symbol = args.symbol
 
     years = list(range(start.year, end.year + 1))
 
@@ -77,3 +89,6 @@ if __name__ == '__main__':
     for year, start in zip(years, starts):
         scrape(year, start, end)
         merge(year)
+
+    for year, start in zip(years, starts):
+        filter(year, symbol)
