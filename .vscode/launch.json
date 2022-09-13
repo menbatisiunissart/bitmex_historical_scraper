@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Scrape all",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scrape.py",
+            "justMyCode": false
+        },
+        {
+            "name": "Scrape from start through end date",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scrape.py",
+            "args": [
+                "--start",
+                "20141122",
+                "--end",
+                "20151122"
+            ],
+            "justMyCode": false
+        }
+    ]
+}
