@@ -48,12 +48,18 @@ def scrape(channel, year, date, end):
 
         date += timedelta(days=1)
 
+def define_file(year, channel, symbol=None):
+    file = "{}_{}.csv".format(year, channel)
+    if (symbol!=None):
+        file = "{}_{}_{}.csv".format(year, channel, symbol)
+    return file
 
-def merge(year):
+def merge(year, channel):
     print("Generating CSV for {}".format(year))
     files = sorted(glob.glob("{}*".format(year)))
     first = True
-    with open("{}.csv".format(year), 'wb') as out:
+    file = define_file(year, channel)
+    with open(file, 'wb') as out:
         for f in files:
             with open(f, 'rb') as fp:
                 if first is False:
@@ -63,12 +69,12 @@ def merge(year):
     for f in files:
         os.unlink(f)
 
-def filter(channel, year, symbol):
+def filter(year, channel, symbol):
     if (symbol==None):
         return
     print("Filtering CSV for {}".format(year), "symbol: {}".format(symbol))
-    file = "{}.csv".format(year)
-    file_filtered = "{}_filtered.csv".format(year)
+    file = define_file(year, channel)
+    file_filtered = define_file(year, channel, symbol)
     df_csv = pd.read_csv(file)
     df_csv = df_csv.loc[df_csv['symbol'] == symbol]
     df_csv.to_csv(path_or_buf=file_filtered, index=False)
@@ -80,7 +86,8 @@ def move(channel, file):
     path = os.path.join('./', channel)
     if not os.path.exists(path):
         os.mkdir(path)
-    shutil.move(file, path)
+    new_file_path = os.path.join(path, file)
+    shutil.move(file, new_file_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BitMex historical data scraper. Scrapes files into single year CSVs')
@@ -102,7 +109,7 @@ if __name__ == '__main__':
 
     for year, start in zip(years, starts):
         scrape(channel, year, start, end)
-        merge(year)
+        merge(year, channel)
 
     for year, start in zip(years, starts):
-        filter(channel, year, symbol)
+        filter(year, channel, symbol)
