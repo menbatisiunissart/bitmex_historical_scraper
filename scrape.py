@@ -63,7 +63,7 @@ def merge(year):
     for f in files:
         os.unlink(f)
 
-def filter(year, symbol):
+def filter(channel, year, symbol):
     if (symbol==None):
         return
     print("Filtering CSV for {}".format(year), "symbol: {}".format(symbol))
@@ -72,6 +72,15 @@ def filter(year, symbol):
     df_csv = pd.read_csv(file)
     df_csv = df_csv.loc[df_csv['symbol'] == symbol]
     df_csv.to_csv(path_or_buf=file_filtered, index=False)
+    move(channel, file)
+    move(channel, file_filtered)
+
+def move(channel, file):
+    # Create the directory first if it doesn't exist:
+    path = os.path.join('./', channel)
+    if not os.path.exists(path):
+        os.mkdir(path)
+    shutil.move(file, path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BitMex historical data scraper. Scrapes files into single year CSVs')
@@ -96,4 +105,4 @@ if __name__ == '__main__':
         merge(year)
 
     for year, start in zip(years, starts):
-        filter(year, symbol)
+        filter(channel, year, symbol)
