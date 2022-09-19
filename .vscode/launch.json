@@ -9,10 +9,9 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/scrape.py",
-            "justMyCode": false
         },
         {
-            "name": "Scrape 2016 XBTUSD",
+            "name": "Scrape 2016 XBTUSD trade",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/scrape.py",
@@ -23,8 +22,23 @@
                 "20160331",
                 "--symbol",
                 "XBTUSD"
-            ],
-            "justMyCode": false
+            ]
+        },
+        {
+            "name": "Scrape 2016 XBTUSD quote",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scrape.py",
+            "args": [
+                "--start",
+                "20160101",
+                "--end",
+                "20160331",
+                "--channel",
+                "quote",
+                "--symbol",
+                "XBTUSD"
+            ]
         },
         {
             "name": "Scrape from start through end date",
@@ -36,8 +50,7 @@
                 "20141122",
                 "--end",
                 "20151122"
-            ],
-            "justMyCode": false
+            ]
         }
     ]
 }

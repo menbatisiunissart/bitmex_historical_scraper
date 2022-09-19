@@ -10,12 +10,15 @@ import time
 import requests
 import pandas as pd
 
+def define_endpoint(channel):
+    # https://public.bitmex.com/?prefix=data/trade/
+    endpoint = 'https://s3-eu-west-1.amazonaws.com/public.bitmex.com/data/{}/'
+    endpoint = endpoint.format(channel)
+    endpoint = endpoint+'{}.csv.gz'
+    return endpoint
 
-# https://public.bitmex.com/?prefix=data/trade/
-endpoint = 'https://s3-eu-west-1.amazonaws.com/public.bitmex.com/data/trade/{}.csv.gz'
-
-
-def scrape(year, date, end):
+def scrape(channel, year, date, end):
+    endpoint = define_endpoint(channel)
     end_date = min(dt(year, 12, 31), dt.today() - timedelta(days=1))
 
     while date <= end_date and date <= end:
@@ -74,11 +77,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BitMex historical data scraper. Scrapes files into single year CSVs')
     parser.add_argument('--start', default="20141122", help='start date, in YYYYMMDD format. Default is 2014-11-22, the earliest data date for BitMex')
     parser.add_argument('--end', default=None, help='end date, in YYYYMMDD format. Default is yesterday')
+    parser.add_argument('--channel', default="trade", help='BitMex historical data channel. Support "trade" and "quote" channel')
     parser.add_argument('--symbol', default=None, help='symbol filter to apply. Default is None, no filtering will be applied')
     args = parser.parse_args()
 
     start = dt.strptime(args.start, '%Y%m%d')
     end = dt.strptime(args.end, '%Y%m%d') if args.end else dt.utcnow()
+    channel = args.channel
     symbol = args.symbol
 
     years = list(range(start.year, end.year + 1))
@@ -87,7 +92,7 @@ if __name__ == '__main__':
     starts[0] = start
 
     for year, start in zip(years, starts):
-        scrape(year, start, end)
+        scrape(channel, year, start, end)
         merge(year)
 
     for year, start in zip(years, starts):
