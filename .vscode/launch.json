@@ -33,7 +33,7 @@
                 "--start",
                 "20160101",
                 "--end",
-                "20160331",
+                "20161231",
                 "--channel",
                 "quote",
                 "--symbol",
@@ -41,16 +41,30 @@
             ]
         },
         {
-            "name": "Scrape from start through end date",
+            "name": "Scrape from 2016 through today XBTUSD trade",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/scrape.py",
             "args": [
                 "--start",
-                "20141122",
-                "--end",
-                "20151122"
+                "20160101",
+                "--symbol",
+                "XBTUSD"
             ]
-        }
+        },
+        {
+            "name": "Scrape from 2016 through today XBTUSD quote",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scrape.py",
+            "args": [
+                "--start",
+                "20160101",
+                "--channel",
+                "quote",
+                "--symbol",
+                "XBTUSD"
+            ]
+        },
     ]
 }
