@@ -45,7 +45,7 @@ def scrape(year, date, end, channel, symbol):
 
         file = define_file(date_str, channel, symbol)
         filter(data, file, date_str, symbol)
-        move(file, channel)
+        move(file, channel, period='day', year=year)
 
         date += timedelta(days=1)
 
@@ -55,8 +55,8 @@ def define_file(date, channel, symbol=None):
         file = "{}_{}_{}.csv".format(date, channel, symbol)
     return file
 
-def temp_file_list(year):
-    files = sorted(glob.glob("{}*".format(year)))
+def file_list(channel, period, year):
+    files = sorted(glob.glob("./{}/{}/{}/*".format(channel, period, year)))
     return files
 
 def clean(year):
@@ -65,17 +65,13 @@ def clean(year):
         os.unlink(f)
 
 def merge_file(year, channel):
-    print("Generating CSV for {}".format(year))
-    files = temp_file_list(year)
-    first = True
+    print("Generating CSV for year {} channel {}".format(year, channel))
+    files = file_list(channel, period='day', year=year)
     file = define_file(year, channel)
-    with open(file, 'wb') as out:
-        for f in files:
-            with open(f, 'rb') as fp:
-                if first is False:
-                    fp.readline()
-                first = False
-                shutil.copyfileobj(fp, out)
+    # joining files with concat and read_csv
+    df = pd.concat(map(pd.read_csv, files), ignore_index=True)
+    df.to_csv(path_or_buf=file, index=False)
+    move(file, channel, period='year', year=year)
 
 def filter(bytes_data, file, date, symbol):
     s=str(bytes_data,'utf-8')
@@ -86,13 +82,20 @@ def filter(bytes_data, file, date, symbol):
         df_csv = df_csv.loc[df_csv['symbol'] == symbol]
     df_csv.to_csv(path_or_buf=file, index=False)
 
-def move(file, channel):
+def move(file, channel, period, year):
     # Create the directory first if it doesn't exist:
-    path = os.path.join('./', channel)
-    if not os.path.exists(path):
-        os.mkdir(path)
-    new_file_path = os.path.join(path, file)
-    shutil.move(file, new_file_path)
+    path_channel = os.path.join('./', channel)
+    if not os.path.exists(path_channel):
+        os.mkdir(path_channel)
+    path_period = os.path.join(path_channel, period)
+    if not os.path.exists(path_period):
+        os.mkdir(path_period)
+    year=str(year)
+    path_year = os.path.join(path_period, year)
+    if not os.path.exists(path_year):
+        os.mkdir(path_year)
+    path_file = os.path.join(path_year, file)
+    shutil.move(file, path_file)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BitMex historical data scraper. Scrapes files into single year CSVs')
@@ -100,7 +103,7 @@ if __name__ == '__main__':
     parser.add_argument('--end', default=None, help='end date, in YYYYMMDD format. Default is yesterday')
     parser.add_argument('--channel', default="trade", help='BitMex historical data channel. Support "trade" and "quote" channel')
     parser.add_argument('--symbol', default=None, help='symbol filter to apply. Default is None, no filtering will be applied')
-    parser.add_argument('--merge', default=False, help='Merge monthly data into yearly data')
+    parser.add_argument('--merge', default=True, help='Merge monthly data into yearly data')
     args = parser.parse_args()
 
     start = dt.strptime(args.start, '%Y%m%d')
