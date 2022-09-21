@@ -1,5 +1,6 @@
 from datetime import datetime as dt
 from datetime import timedelta
+from io import StringIO
 import argparse
 import gzip
 import glob
@@ -17,7 +18,7 @@ def define_endpoint(channel):
     endpoint = endpoint+'{}.csv.gz'
     return endpoint
 
-def scrape(channel, year, date, end):
+def scrape(year, date, end, channel, symbol):
     endpoint = define_endpoint(channel)
     end_date = min(dt(year, 12, 31), dt.today() - timedelta(days=1))
 
@@ -36,27 +37,36 @@ def scrape(channel, year, date, end):
                 print("Error processing {} - {}, trying again".format(date, r.status_code))
                 time.sleep(10)
 
-
         with open(date_str, 'wb') as fp:
             fp.write(r.content)
 
         with gzip.open(date_str, 'rb') as fp:
             data = fp.read()
 
-        with open(date_str, 'wb') as fp:
-            fp.write(data)
+        file = define_file(date_str, channel, symbol)
+        filter(data, file, date_str, symbol)
+        move(file, channel)
 
         date += timedelta(days=1)
 
-def define_file(year, channel, symbol=None):
-    file = "{}_{}.csv".format(year, channel)
+def define_file(date, channel, symbol=None):
+    file = "{}_{}.csv".format(date, channel)
     if (symbol!=None):
-        file = "{}_{}_{}.csv".format(year, channel, symbol)
+        file = "{}_{}_{}.csv".format(date, channel, symbol)
     return file
 
-def merge(year, channel):
-    print("Generating CSV for {}".format(year))
+def temp_file_list(year):
     files = sorted(glob.glob("{}*".format(year)))
+    return files
+
+def clean(year):
+    files = sorted(glob.glob("{}*".format(year)))
+    for f in files:
+        os.unlink(f)
+
+def merge_file(year, channel):
+    print("Generating CSV for {}".format(year))
+    files = temp_file_list(year)
     first = True
     file = define_file(year, channel)
     with open(file, 'wb') as out:
@@ -66,22 +76,17 @@ def merge(year, channel):
                     fp.readline()
                 first = False
                 shutil.copyfileobj(fp, out)
-    for f in files:
-        os.unlink(f)
 
-def filter(year, channel, symbol):
-    if (symbol==None):
-        return
-    print("Filtering CSV for {}".format(year), "symbol: {}".format(symbol))
-    file = define_file(year, channel)
-    file_filtered = define_file(year, channel, symbol)
-    df_csv = pd.read_csv(file)
-    df_csv = df_csv.loc[df_csv['symbol'] == symbol]
-    df_csv.to_csv(path_or_buf=file_filtered, index=False)
-    move(channel, file)
-    move(channel, file_filtered)
+def filter(bytes_data, file, date, symbol):
+    s=str(bytes_data,'utf-8')
+    data = StringIO(s)
+    df_csv = pd.read_csv(data)
+    if (symbol!=None):
+        print("Filtering data for {}".format(date), "symbol: {}".format(symbol))
+        df_csv = df_csv.loc[df_csv['symbol'] == symbol]
+    df_csv.to_csv(path_or_buf=file, index=False)
 
-def move(channel, file):
+def move(file, channel):
     # Create the directory first if it doesn't exist:
     path = os.path.join('./', channel)
     if not os.path.exists(path):
@@ -95,12 +100,14 @@ if __name__ == '__main__':
     parser.add_argument('--end', default=None, help='end date, in YYYYMMDD format. Default is yesterday')
     parser.add_argument('--channel', default="trade", help='BitMex historical data channel. Support "trade" and "quote" channel')
     parser.add_argument('--symbol', default=None, help='symbol filter to apply. Default is None, no filtering will be applied')
+    parser.add_argument('--merge', default=False, help='Merge monthly data into yearly data')
     args = parser.parse_args()
 
     start = dt.strptime(args.start, '%Y%m%d')
     end = dt.strptime(args.end, '%Y%m%d') if args.end else dt.utcnow()
     channel = args.channel
     symbol = args.symbol
+    merge = args.merge
 
     years = list(range(start.year, end.year + 1))
 
@@ -108,8 +115,8 @@ if __name__ == '__main__':
     starts[0] = start
 
     for year, start in zip(years, starts):
-        scrape(channel, year, start, end)
-        merge(year, channel)
-
-    for year, start in zip(years, starts):
-        filter(year, channel, symbol)
+        scrape(year, start, end, channel, symbol)
+        if (merge==True):
+            merge_file(year, channel)
+        clean(year)
+        
