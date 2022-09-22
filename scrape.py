@@ -7,27 +7,64 @@ import glob
 import os
 import shutil
 import time
+from typing import Any
 
 import requests
 import pandas as pd
 
-def define_endpoint(channel):
+def endpoint_bitmex_api(channel: str, symbol: str):
+    endpoint = 'https://www.bitmex.com/api/v1/{}?symbol={}&reverse=false'.format(channel, symbol)
+    endpoint = endpoint+'&startTime={}&endTime={}'
+# https://www.bitmex.com/api/v1/funding?symbol=XBTUSD&reverse=false&startTime=2021-01-20T17%3A16%3A29.029Z&endTime=2021-09-20T17%3A16%3A29.029Z
+    return endpoint
+
+def endpoint_bitmex_aws(channel: str):
     # https://public.bitmex.com/?prefix=data/trade/
     endpoint = 'https://s3-eu-west-1.amazonaws.com/public.bitmex.com/data/{}/'
     endpoint = endpoint.format(channel)
     endpoint = endpoint+'{}.csv.gz'
     return endpoint
 
-def scrape(year, date, end, channel, symbol):
-    endpoint = define_endpoint(channel)
-    end_date = min(dt(year, 12, 31), dt.today() - timedelta(days=1))
+def define_endpoint(channel: str, symbol: str):
+    if channel == "funding":
+        endpoint = endpoint_bitmex_api(channel, symbol)
+    else:
+        endpoint = endpoint_bitmex_aws(channel)
+    return endpoint
 
+def define_request(date: dt, end_date:dt, channel: str, symbol: str):
+    endpoint = define_endpoint(channel, symbol)
+    if channel == "funding":
+        startTime = date
+        endTime = end_date
+        request = endpoint.format(startTime, endTime)
+    else:
+        date_str = date.strftime('%Y%m%d')
+        request = endpoint.format(date_str)
+    return request
+
+def read_data(date_str: str, channel: str, content: Any):
+    if channel == "funding":
+        data = content
+    else:
+        with open(date_str, 'wb') as fp:
+            fp.write(content)
+
+        with gzip.open(date_str, 'rb') as fp:
+            data = fp.read()
+    return data
+
+def scrape(year: int, date: dt, end: dt, channel: str, symbol: str):
+    
+    end_date = min(dt(year, 12, 31), dt.today() - timedelta(days=1))
     while date <= end_date and date <= end:
         date_str = date.strftime('%Y%m%d')
         print("Processing {}...".format(date))
+        date_plus_one_day = date + timedelta(days=1)
+        request = define_request(date, date_plus_one_day, channel, symbol)
         count = 0
         while True:
-            r = requests.get(endpoint.format(date_str))
+            r = requests.get(request)
             if r.status_code == 200:
                 break
             else:
@@ -37,12 +74,7 @@ def scrape(year, date, end, channel, symbol):
                 print("Error processing {} - {}, trying again".format(date, r.status_code))
                 time.sleep(10)
 
-        with open(date_str, 'wb') as fp:
-            fp.write(r.content)
-
-        with gzip.open(date_str, 'rb') as fp:
-            data = fp.read()
-
+        data = read_data(date_str, channel, r.content)
         file = define_file(date_str, channel, symbol)
         filter(data, file, date_str, symbol)
         move(file, channel, period='day', year=year)
@@ -77,7 +109,7 @@ def filter(bytes_data, file, date, symbol):
     s=str(bytes_data,'utf-8')
     data = StringIO(s)
     df_csv = pd.read_csv(data)
-    if (symbol!=None):
+    if (symbol!=None and  not df_csv.empty):
         print("Filtering data for {}".format(date), "symbol: {}".format(symbol))
         df_csv = df_csv.loc[df_csv['symbol'] == symbol]
     df_csv.to_csv(path_or_buf=file, index=False)
