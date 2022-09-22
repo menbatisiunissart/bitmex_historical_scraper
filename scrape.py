@@ -1,15 +1,13 @@
 from datetime import datetime as dt
 from datetime import timedelta
-from io import StringIO
 import argparse
-import gzip
 import glob
 import os
 import shutil
 import time
-from typing import Any
 import pandas as pd
 from request import make_request
+from response import define_file, process_response
 
 def define_days_interval(channel: str):
     if channel == "funding":
@@ -17,17 +15,6 @@ def define_days_interval(channel: str):
     else:
         days_interval = 1
     return days_interval
-
-def read_data(date_str: str, channel: str, content: Any):
-    if channel == "funding":
-        data = content
-    else:
-        with open(date_str, 'wb') as fp:
-            fp.write(content)
-
-        with gzip.open(date_str, 'rb') as fp:
-            data = fp.read()
-    return data
 
 def scrape(year: int, date: dt, end: dt, channel: str, symbol: str):
     
@@ -48,18 +35,11 @@ def scrape(year: int, date: dt, end: dt, channel: str, symbol: str):
                 time.sleep(10)
 
         date_str = date.strftime('%Y%m%d')
-        data = read_data(date_str, channel, r.content)
         file = define_file(date_str, channel, symbol)
-        filter(data, file, date_str, symbol)
+        process_response(r, date_str, channel, symbol)
         move(file, channel, period='day', year=year)
 
         date += timedelta(days=days_interval)
-
-def define_file(date, channel, symbol=None):
-    file = "{}_{}.csv".format(date, channel)
-    if (symbol!=None):
-        file = "{}_{}_{}.csv".format(date, channel, symbol)
-    return file
 
 def file_list(channel, period, year):
     files = sorted(glob.glob("./{}/{}/{}/*".format(channel, period, year)))
@@ -74,19 +54,16 @@ def merge_file(year, channel):
     print("Generating CSV for year {} channel {}".format(year, channel))
     files = file_list(channel, period='day', year=year)
     file = define_file(year, channel)
-    # joining files with concat and read_csv
-    df = pd.concat(map(pd.read_csv, files), ignore_index=True)
+    data = []
+    for f in files:
+        try:
+            temp = pd.read_csv(f)
+            data.append(temp)
+        except pd.errors.EmptyDataError:
+            continue
+    df = pd.concat(data)
     df.to_csv(path_or_buf=file, index=False)
     move(file, channel, period='year', year=year)
-
-def filter(bytes_data, file, date, symbol):
-    s=str(bytes_data,'utf-8')
-    data = StringIO(s)
-    df_csv = pd.read_csv(data)
-    if (symbol!=None and  not df_csv.empty):
-        print("Filtering data for {}".format(date), "symbol: {}".format(symbol))
-        df_csv = df_csv.loc[df_csv['symbol'] == symbol]
-    df_csv.to_csv(path_or_buf=file, index=False)
 
 def move(file, channel, period, year):
     # Create the directory first if it doesn't exist:
