@@ -40,8 +40,7 @@ def make_request(date: dt, channel: str, symbol: str, days_interval: int):
         endTime = startTime + timedelta(days=days_interval)
         request = endpoint.format(startTime, endTime)
         while 1:
-            if get_limiter():
-                print(get_limiter())
+            if get_limiter(channel):
                 r = requests.get(request)
                 return r
             else: 
