@@ -1,6 +1,7 @@
 # Output
 trade/
 quote/
+funding/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
