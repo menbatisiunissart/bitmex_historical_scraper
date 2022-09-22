@@ -41,6 +41,20 @@
             ]
         },
         {
+            "name": "Scrape all XBTUSD funding",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scrape.py",
+            "args": [
+                "--start",
+                "20160501",
+                "--channel",
+                "funding",
+                "--symbol",
+                "XBTUSD"
+            ]
+        },
+        {
             "name": "Scrape from 2016 through today XBTUSD trade",
             "type": "python",
             "request": "launch",
