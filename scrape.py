@@ -35,9 +35,7 @@ def define_endpoint(channel: str, symbol: str):
 def define_request(date: dt, end_date:dt, channel: str, symbol: str):
     endpoint = define_endpoint(channel, symbol)
     if channel == "funding":
-        startTime = date
-        endTime = end_date
-        request = endpoint.format(startTime, endTime)
+        request = endpoint.format(date, end_date)
     else:
         date_str = date.strftime('%Y%m%d')
         request = endpoint.format(date_str)
