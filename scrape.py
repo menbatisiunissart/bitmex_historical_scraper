@@ -8,38 +8,15 @@ import os
 import shutil
 import time
 from typing import Any
-
-import requests
 import pandas as pd
+from request import make_request
 
-def endpoint_bitmex_api(channel: str, symbol: str):
-    endpoint = 'https://www.bitmex.com/api/v1/{}?symbol={}&reverse=false'.format(channel, symbol)
-    endpoint = endpoint+'&startTime={}&endTime={}'
-# https://www.bitmex.com/api/v1/funding?symbol=XBTUSD&reverse=false&startTime=2021-01-20T17%3A16%3A29.029Z&endTime=2021-09-20T17%3A16%3A29.029Z
-    return endpoint
-
-def endpoint_bitmex_aws(channel: str):
-    # https://public.bitmex.com/?prefix=data/trade/
-    endpoint = 'https://s3-eu-west-1.amazonaws.com/public.bitmex.com/data/{}/'
-    endpoint = endpoint.format(channel)
-    endpoint = endpoint+'{}.csv.gz'
-    return endpoint
-
-def define_endpoint(channel: str, symbol: str):
+def define_days_interval(channel: str):
     if channel == "funding":
-        endpoint = endpoint_bitmex_api(channel, symbol)
+        days_interval = 30
     else:
-        endpoint = endpoint_bitmex_aws(channel)
-    return endpoint
-
-def define_request(date: dt, end_date:dt, channel: str, symbol: str):
-    endpoint = define_endpoint(channel, symbol)
-    if channel == "funding":
-        request = endpoint.format(date, end_date)
-    else:
-        date_str = date.strftime('%Y%m%d')
-        request = endpoint.format(date_str)
-    return request
+        days_interval = 1
+    return days_interval
 
 def read_data(date_str: str, channel: str, content: Any):
     if channel == "funding":
@@ -56,14 +33,12 @@ def scrape(year: int, date: dt, end: dt, channel: str, symbol: str):
     
     end_date = min(dt(year, 12, 31), dt.today() - timedelta(days=1))
     while date <= end_date and date <= end:
-        date_str = date.strftime('%Y%m%d')
+        days_interval = define_days_interval(channel)
         print("Processing {}...".format(date))
-        date_plus_one_day = date + timedelta(days=1)
-        request = define_request(date, date_plus_one_day, channel, symbol)
         count = 0
         while True:
-            r = requests.get(request)
-            if r.status_code == 200:
+            r = make_request(date, channel, symbol, days_interval)
+            if r and r.status_code == 200:
                 break
             else:
                 count += 1
@@ -72,12 +47,13 @@ def scrape(year: int, date: dt, end: dt, channel: str, symbol: str):
                 print("Error processing {} - {}, trying again".format(date, r.status_code))
                 time.sleep(10)
 
+        date_str = date.strftime('%Y%m%d')
         data = read_data(date_str, channel, r.content)
         file = define_file(date_str, channel, symbol)
         filter(data, file, date_str, symbol)
         move(file, channel, period='day', year=year)
 
-        date += timedelta(days=1)
+        date += timedelta(days=days_interval)
 
 def define_file(date, channel, symbol=None):
     file = "{}_{}.csv".format(date, channel)
